@@ -2,10 +2,17 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FiMenu, FiX } from 'react-icons/fi';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const router = useRouter();
+
+  const handleProgramClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push('/programs/create');
+  };
 
   return (
     <nav className="bg-white shadow-sm">
@@ -18,9 +25,12 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link href="/programs" className="text-gray-700 hover:text-blue-600">
+            <button
+              onClick={handleProgramClick}
+              className="text-gray-700 hover:text-blue-600"
+            >
               Programs
-            </Link>
+            </button>
             <Link href="/nutrition" className="text-gray-700 hover:text-blue-600">
               Nutrition
             </Link>
@@ -28,10 +38,7 @@ const Navbar = () => {
               Trainers
             </Link>
             <Link href="/login" className="text-gray-700 hover:text-blue-600">
-              Login
-            </Link>
-            <Link href="/signup" className="btn-primary">
-              Get Started
+              Join Us
             </Link>
           </div>
 
@@ -52,13 +59,12 @@ const Navbar = () => {
         {isMenuOpen && (
           <div className="md:hidden py-4">
             <div className="flex flex-col space-y-4">
-              <Link
-                href="/programs"
-                className="text-gray-700 hover:text-blue-600"
-                onClick={() => setIsMenuOpen(false)}
+              <button
+                onClick={handleProgramClick}
+                className="text-left text-gray-700 hover:text-blue-600"
               >
                 Programs
-              </Link>
+              </button>
               <Link
                 href="/nutrition"
                 className="text-gray-700 hover:text-blue-600"
@@ -80,7 +86,6 @@ const Navbar = () => {
               >
                 Login
               </Link>
-            
             </div>
           </div>
         )}

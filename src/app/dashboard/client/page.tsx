@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { FiCalendar, FiActivity, FiTrendingUp, FiPackage, FiDollarSign, FiUser } from 'react-icons/fi';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { FiCalendar, FiActivity, FiTrendingUp, FiPackage, FiDollarSign, FiUser, FiPlus } from 'react-icons/fi';
 
 const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
 
@@ -97,6 +98,8 @@ const workoutProgram = {
 };
 
 export default function ClientDashboard() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'supplements' | 'workouts' | 'progress'>('overview');
 
   return (
