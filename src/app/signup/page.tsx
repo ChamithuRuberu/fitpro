@@ -1,4 +1,5 @@
 import React from 'react'
+import OTPVerification from '../components/otpVerification/Verify'
 
 function signUp() {
     return (
@@ -7,7 +8,7 @@ function signUp() {
                 {/* Image Section */}
                 <div className="bg-black lg:w-1/2">
                     <img
-                        src="auth/register.png" // Update the image path
+                        src="/auth/regCover.png" // Update the image path
                         alt="Registration Image"
                         className="w-full h-full object-cover"
                     />
@@ -172,6 +173,7 @@ function signUp() {
                     </form>
                 </div>
             </div>
+            <OTPVerification/>
         </div>)
 }
 
