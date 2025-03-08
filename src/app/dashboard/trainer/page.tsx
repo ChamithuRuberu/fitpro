@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { FiUsers, FiCalendar, FiDollarSign, FiPlus, FiPackage, FiUser, FiMapPin, FiActivity } from 'react-icons/fi';
+import { FiUsers, FiCalendar, FiDollarSign, FiPlus, FiPackage, FiUser, FiMapPin, FiActivity, FiLogOut } from 'react-icons/fi';
 import type { ClientData } from '@/types/dashboard';
 import type { NutritionItem } from '@/types/nutrition';
 import toast, { Toaster } from 'react-hot-toast';
@@ -223,10 +223,55 @@ export default function TrainerDashboard() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch('http://localhost:8080/api/user/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ token })
+      });
+
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+
+      // Clear all stored data
+      localStorage.clear();
+      toast.success('Logged out successfully');
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to logout');
+      // Still redirect to login in case of error
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" />
-      <Navbar />
+      <div className="bg-white shadow">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center h-16">
+            <h1 className="text-xl font-semibold text-gray-900">FitPro</h1>
+            <button
+              onClick={handleLogout}
+              className="flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 focus:outline-none"
+            >
+              <FiLogOut className="w-4 h-4 mr-2" />
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+      
       
       {/* Profile Setup Modal */}
       {showProfileSetup && (
