@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { FiUsers, FiCalendar, FiDollarSign, FiPlus, FiPackage } from 'react-icons/fi';
+import { FiUsers, FiCalendar, FiDollarSign, FiPlus, FiPackage, FiUser, FiMapPin, FiActivity } from 'react-icons/fi';
 import type { ClientData } from '@/types/dashboard';
 import type { NutritionItem } from '@/types/nutrition';
+import toast, { Toaster } from 'react-hot-toast';
 
 const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
 
@@ -57,13 +58,322 @@ const recommendedSupplements: NutritionItem[] = [
   // Add more supplements...
 ];
 
+interface TrainerProfileData {
+  name: string;
+  city: string;
+  servicePeriod: string;
+  weight: string;
+  height: string;
+  profile: string;
+}
+
 export default function TrainerDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'supplements'>('overview');
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [profileData, setProfileData] = useState<TrainerProfileData>({
+    name: '',
+    city: '',
+    servicePeriod: '',
+    weight: '',
+    height: '',
+    profile: ''
+  });
+
+  useEffect(() => {
+    // Check if trainer has completed their profile
+    const checkProfile = async () => {
+      try {
+        const userId = localStorage.getItem('user_id');
+        const token = localStorage.getItem('token');
+        const isAuthenticated = localStorage.getItem('isAuthenticated');
+        const userRoleStr = localStorage.getItem('user_role');
+
+        console.log('Dashboard Auth Check:', {
+          userId,
+          hasToken: !!token,
+          isAuthenticated,
+          userRole: userRoleStr
+        });
+
+        // Verify all required auth data exists
+        if (!userId || !token || !isAuthenticated || !userRoleStr) {
+          console.error('Missing authentication credentials');
+          toast.error('Please login to access the dashboard');
+          localStorage.clear();
+          window.location.href = '/login';
+          return;
+        }
+
+        // Verify user role
+        try {
+          const userRole = JSON.parse(userRoleStr);
+          if (!userRole || userRole.name !== 'ROLE_TRAINER') {
+            console.error('Invalid user role');
+            toast.error('Unauthorized access');
+            localStorage.clear();
+            window.location.href = '/login';
+            return;
+          }
+        } catch (e) {
+          console.error('Error parsing user role:', e);
+          toast.error('Session error');
+          localStorage.clear();
+          window.location.href = '/login';
+          return;
+        }
+
+        // Verify token is valid with a simpler endpoint first
+        const authCheckResponse = await fetch('', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!authCheckResponse.ok) {
+          console.error('Token validation failed');
+          localStorage.clear();
+          toast.error('Session expired. Please login again');
+          window.location.href = '/login';
+          return;
+        }
+
+        // Now fetch trainer profile
+        const response = await fetch(``, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        console.log('Profile verification response:', {
+          status: response.status,
+          ok: response.ok
+        });
+
+        // Handle specific response statuses
+        if (response.status === 401 || response.status === 403) {
+          console.error('Authentication token expired or invalid');
+          localStorage.clear();
+          toast.error('Session expired. Please login again');
+          window.location.href = '/login';
+          return;
+        }
+
+        if (response.status === 404) {
+          console.log('Profile not found, showing setup modal');
+          setShowProfileSetup(true);
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile data');
+        }
+
+        const data = await response.json();
+        console.log('Profile data:', data);
+        
+        if (data && data.name) {
+          setProfileData(data);
+        } else {
+          console.log('Empty profile data, showing setup modal');
+          setShowProfileSetup(true);
+        }
+      } catch (error) {
+        console.error('Error checking profile:', error);
+        toast.error('Failed to load profile');
+        // Don't redirect on general errors, only auth errors
+      }
+    };
+
+    checkProfile();
+  }, []);
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const userId = localStorage.getItem('user_id');
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(``, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      const data = await response.json();
+      toast.success('Profile updated successfully');
+      setShowProfileSetup(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" />
       <Navbar />
       
+      {/* Profile Setup Modal */}
+      {showProfileSetup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-semibold mb-6">Complete Your Profile</h2>
+            <form onSubmit={handleProfileSubmit} className="space-y-6">
+              {/* Name Field */}
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                  Full Name
+                </label>
+                <div className="mt-1 relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiUser className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required
+                    className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={profileData.name}
+                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* City Field */}
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                  City
+                </label>
+                <div className="mt-1 relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiMapPin className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="city"
+                    name="city"
+                    type="text"
+                    required
+                    className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={profileData.city}
+                    onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Service Period Field */}
+              <div>
+                <label htmlFor="servicePeriod" className="block text-sm font-medium text-gray-700">
+                  Service Period (years)
+                </label>
+                <input
+                  id="servicePeriod"
+                  name="servicePeriod"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={profileData.servicePeriod}
+                  onChange={(e) => setProfileData({ ...profileData, servicePeriod: e.target.value })}
+                />
+              </div>
+
+              {/* Weight and Height Fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
+                    Weight (kg)
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FiActivity className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="weight"
+                      name="weight"
+                      type="number"
+                      min="30"
+                      max="200"
+                      required
+                      className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      value={profileData.weight}
+                      onChange={(e) => setProfileData({ ...profileData, weight: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="height" className="block text-sm font-medium text-gray-700">
+                    Height (cm)
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FiActivity className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="height"
+                      name="height"
+                      type="number"
+                      min="100"
+                      max="250"
+                      required
+                      className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      value={profileData.height}
+                      onChange={(e) => setProfileData({ ...profileData, height: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile Field */}
+              <div>
+                <label htmlFor="profile" className="block text-sm font-medium text-gray-700">
+                  Professional Profile
+                </label>
+                <textarea
+                  id="profile"
+                  name="profile"
+                  rows={4}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Describe your experience and expertise..."
+                  value={profileData.profile}
+                  onChange={(e) => setProfileData({ ...profileData, profile: e.target.value })}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                  loading 
+                    ? 'bg-blue-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                }`}
+              >
+                {loading ? 'Updating...' : 'Update Profile'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Dashboard Header */}
       <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-6">

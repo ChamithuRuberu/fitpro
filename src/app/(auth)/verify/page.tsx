@@ -70,19 +70,54 @@ export default function VerifyPage() {
 
       const data = await response.json();
       
-      // Clear stored data
-      localStorage.removeItem('registeredEmail');
-      localStorage.removeItem('isRegistering');
-      localStorage.setItem('isVerified', 'true');
+      // Store authentication data if token is present
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
       
-      toast.success('Account verified successfully! Redirecting to login...');
-      
-      // Use window.location.replace for more reliable navigation
-      setTimeout(() => {
-        window.location.replace('/login');
-      }, 1500);
-      
-      return;
+      try {
+        // Get the registration data from localStorage
+        const registrationData = localStorage.getItem('registrationData');
+        if (!registrationData) {
+          throw new Error('Registration data not found');
+        }
+
+        const parsedData = JSON.parse(registrationData);
+        console.log('Registration data:', parsedData);
+
+        // Check if user is a trainer by looking at the user_role array
+        const trainerRole = parsedData.data?.user_role?.[0];
+        console.log('User role:', trainerRole);
+
+        if (trainerRole && trainerRole.name === 'ROLE_TRAINER') {
+          console.log('User is a trainer, storing session data');
+          
+          // Store necessary data for trainer session
+          localStorage.setItem('temp_trainer_id', parsedData.data.app_user_id);
+          localStorage.setItem('trainer_role', JSON.stringify(trainerRole));
+          localStorage.setItem('isVerified', 'true');
+          
+          // Clear registration data as it's no longer needed
+          localStorage.removeItem('registrationData');
+          localStorage.removeItem('isRegistering');
+          
+          toast.success('Account verified! Redirecting to complete your profile...');
+          
+          // Redirect to trainer profile completion
+          window.location.href = '/trainer-profile';
+          return;
+        } else {
+          // Handle non-trainer users
+          toast.success('Account verified! Redirecting to login...');
+          window.location.href = '/login';
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking trainer role:', error);
+        toast.error('Authentication failed. Please try again.');
+        window.location.href = '/login';
+        return;
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during verification';
       setError(errorMessage);

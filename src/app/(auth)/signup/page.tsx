@@ -69,20 +69,20 @@ export default function SignupPage() {
 
       const userData = data.data;
       
-      // Store necessary data in localStorage
-      localStorage.setItem('userRole', userData.user_role?.[0] || (formData.isTrainer ? 'ROLE_TRAINER' : 'ROLE_USER'));
+      // Store the complete registration response data
+      localStorage.setItem('registrationData', JSON.stringify(data));
       localStorage.setItem('registeredEmail', formData.email);
       localStorage.setItem('app_user_id', userData.app_user_id);
-      localStorage.setItem('isRegistering', 'true'); // Add flag to indicate registration flow
+      localStorage.setItem('isRegistering', 'true');
       
       toast.success(data.message || 'Registration successful! Please verify your account.');
       
-      // Construct verify URL with both app_user_id and email
-      const verifyUrl = `/verify?username=${encodeURIComponent(userData.app_user_id)}&email=${encodeURIComponent(formData.email)}`;
+      // Construct verify URL with app_user_id
+      const verifyUrl = `/verify?username=${encodeURIComponent(userData.app_user_id)}`;
       
       // Use setTimeout to ensure toast is visible before navigation
       setTimeout(() => {
-        window.location.replace(verifyUrl); // Use replace instead of href
+        window.location.replace(verifyUrl);
       }, 1000);
       
       return;
