@@ -93,9 +93,9 @@ export default function LoginPage() {
             htmlFor="password"
             className="block text-sm font-medium text-gray-700 pb-4"
           >
-            Forgot Password ?
+            Forgot Password ? <span className='text-blue-500 hover:cursor-pointer'>reset here</span>
           </label>
-      
+          
       <div className='flex flex-row'>
       <button
           type="submit"
