@@ -11,8 +11,6 @@ interface SignupFormData {
   nic: string;
   mobile: string;
   email: string;
-  password: string;
-  confirmPassword: string;
   isTrainer: boolean;
   trainerId?: string; // Will be auto-generated if isTrainer is true
 }
@@ -23,8 +21,6 @@ export default function SignupPage() {
     nic: '',
     mobile: '',
     email: '',
-    password: '',
-    confirmPassword: '',
     isTrainer: false,
   });
 
@@ -37,13 +33,7 @@ export default function SignupPage() {
     setError(null);
     setLoading(true);
 
-    if (formData.password !== formData.confirmPassword) {
-      console.log('❌ Password mismatch');
-      setError('Passwords do not match');
-      toast.error('Passwords do not match');
-      setLoading(false);
-      return;
-    }
+   
 
     console.log('✨ Form data validation passed');
     const loadingToast = toast.loading('Creating your account...');
@@ -54,7 +44,6 @@ export default function SignupPage() {
         nic: formData.nic,
         mobile: formData.mobile,
         email: formData.email,
-        password: formData.password,
         role_type: formData.isTrainer ? 'ROLE_TRAINER' : 'ROLE_USER'
       };
 
@@ -241,49 +230,6 @@ export default function SignupPage() {
                   placeholder="you@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              </div>
-            </div>
-
-            {/* Password Fields */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiLock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiLock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 />
               </div>
             </div>
