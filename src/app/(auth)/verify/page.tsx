@@ -22,36 +22,22 @@ export default function VerifyPage() {
 
   // Pre-fill username if provided in URL params
   useEffect(() => {
-    console.log('🔍 URL Parameters:', {
-      raw: searchParams.toString(),
-      parsed: Object.fromEntries(searchParams.entries())
-    });
     const username = searchParams.get('username');
-    console.log('📧 Username from URL:', username);
+    const isRegistering = localStorage.getItem('isRegistering');
     
     if (username) {
       setFormData(prev => ({ ...prev, username }));
       toast.success('Please enter the OTP sent to your email');
-    } else {
-      // If no username in URL, check localStorage
-      const storedEmail = localStorage.getItem('registeredEmail');
-      console.log('💾 Stored email from localStorage:', storedEmail);
-      if (storedEmail) {
-        setFormData(prev => ({ ...prev, username: storedEmail }));
-        toast.success('Please enter the OTP sent to your email');
-      } else {
-        toast.error('No email found. Please register first.');
-        // Use router.replace instead of push to prevent back navigation
-        router.replace('/signup');
-      }
+    } else if (!isRegistering) {
+      // Only redirect if not in registration flow
+      toast.error('Invalid access. Please register first.');
+      router.replace('/signup');
     }
 
-    // Check if user is already verified
-    const isVerified = localStorage.getItem('isVerified');
-    if (isVerified === 'true') {
-      toast.error('Account already verified');
-      router.replace('/login');
-    }
+    // Cleanup function to remove registration flag
+    return () => {
+      localStorage.removeItem('isRegistering');
+    };
   }, [searchParams, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,20 +48,7 @@ export default function VerifyPage() {
     const verifyToast = toast.loading('Verifying your account...');
 
     try {
-      console.log('🚀 Verification Request:', {
-        url: '/api/user/register-verify',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: {
-          username: formData.username,
-          otp: formData.otp
-        }
-      });
-
-      const response = await fetch('/api/user/register-verify', {
+      const response = await fetch('http://localhost:8080/api/user/register-verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,19 +60,8 @@ export default function VerifyPage() {
         }),
       });
 
-      console.log('📥 Response Headers:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('❌ Verification failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData
-        });
         toast.error(errorData || 'Verification failed');
         throw new Error(
           `Verification failed: ${response.status} ${response.statusText}. ${errorData}`
@@ -107,22 +69,21 @@ export default function VerifyPage() {
       }
 
       const data = await response.json();
-      console.log('✅ Verification successful:', {
-        data,
-        nextStep: 'Redirecting to login page'
-      });
       
-      // Clear stored email and set verification flag
+      // Clear stored data
       localStorage.removeItem('registeredEmail');
+      localStorage.removeItem('isRegistering');
       localStorage.setItem('isVerified', 'true');
       
       toast.success('Account verified successfully! Redirecting to login...');
       
-      // Use router for navigation instead of window.location
-      router.replace('/login');
-      return; // Add return to prevent any further execution
+      // Use window.location.replace for more reliable navigation
+      setTimeout(() => {
+        window.location.replace('/login');
+      }, 1500);
+      
+      return;
     } catch (err) {
-      console.error('❌ Verification error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during verification';
       setError(errorMessage);
       toast.error(errorMessage);

@@ -29,11 +29,8 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🎯 Form submission started');
     setError(null);
     setLoading(true);
-
-   
 
     console.log('✨ Form data validation passed');
     const loadingToast = toast.loading('Creating your account...');
@@ -46,19 +43,6 @@ export default function SignupPage() {
         email: formData.email,
         role_type: formData.isTrainer ? 'ROLE_TRAINER' : 'ROLE_USER'
       };
-
-      console.log('🚀 Preparing registration request:', {
-        url: 'http://localhost:8080/api/user/register-init',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: {
-          ...requestData,
-          password: '[HIDDEN]'
-        }
-      });
       
       // Using Fetch API with full URL
       const response = await fetch('http://localhost:8080/api/user/register-init', {
@@ -70,76 +54,37 @@ export default function SignupPage() {
         body: JSON.stringify(requestData),
       });
 
-      console.log('📥 Response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('❌ Registration failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData
-        });
+        console.error('❌ Registration failed:', errorData);
         toast.error(errorData || 'Registration failed');
-        throw new Error(
-          `Registration failed: ${response.status} ${response.statusText}. ${errorData}`
-        );
+        throw new Error(`Registration failed: ${errorData}`);
       }
 
       const data = await response.json();
-      // Log the entire response data
-      console.log('📦 Complete response data:', JSON.stringify(data, null, 2));
       
-      // Check if data exists and has the expected structure
-      console.log('🔍 Checking response structure:', {
-        code: data?.code,
-        title: data?.title,
-        message: data?.message,
-        hasData: !!data?.data,
-        appUserId: data?.data?.app_user_id
-      });
-
       if (!data.data?.app_user_id) {
-        console.error('❌ No app_user_id in response:', JSON.stringify(data, null, 2));
         throw new Error('Registration failed: No app_user_id received');
       }
 
       const userData = data.data;
-      console.log('✅ Registration response data:', {
-        app_user_id: userData.app_user_id,
-        mobile: userData.mobile,
-        gov_id: userData.gov_id,
-        user_role: userData.user_role?.[0] || formData.isTrainer ? 'ROLE_TRAINER' : 'ROLE_USER'
-      });
       
       // Store necessary data in localStorage
-      console.log('💾 Storing data in localStorage');
       localStorage.setItem('userRole', userData.user_role?.[0] || (formData.isTrainer ? 'ROLE_TRAINER' : 'ROLE_USER'));
       localStorage.setItem('registeredEmail', formData.email);
       localStorage.setItem('app_user_id', userData.app_user_id);
+      localStorage.setItem('isRegistering', 'true'); // Add flag to indicate registration flow
       
-      // Log what was stored in localStorage
-      console.log('📝 Stored in localStorage:', {
-        userRole: localStorage.getItem('userRole'),
-        registeredEmail: localStorage.getItem('registeredEmail'),
-        app_user_id: localStorage.getItem('app_user_id')
-      });
-      
-      console.log('🔔 Showing success toast');
       toast.success(data.message || 'Registration successful! Please verify your account.');
       
-      console.log('🔄 Preparing navigation to verify screen');
-      // Force a full page navigation to verify screen with app_user_id as username
-      const verifyUrl = `/verify?username=${encodeURIComponent(userData.app_user_id)}`;
-      console.log('🔗 Verify URL:', verifyUrl);
+      // Construct verify URL with both app_user_id and email
+      const verifyUrl = `/verify?username=${encodeURIComponent(userData.app_user_id)}&email=${encodeURIComponent(formData.email)}`;
       
+      // Use setTimeout to ensure toast is visible before navigation
       setTimeout(() => {
-        console.log('➡️ Navigating to verify screen with app_user_id:', userData.app_user_id);
-        window.location.href = verifyUrl;
+        window.location.replace(verifyUrl); // Use replace instead of href
       }, 1000);
+      
       return;
     } catch (err) {
       console.error('❌ Registration error:', err);
@@ -147,7 +92,6 @@ export default function SignupPage() {
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
-      console.log('🏁 Form submission completed');
       toast.dismiss(loadingToast);
       setLoading(false);
     }
