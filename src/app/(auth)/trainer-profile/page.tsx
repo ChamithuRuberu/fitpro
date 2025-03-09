@@ -80,6 +80,7 @@ export default function TrainerProfilePage() {
       toast.success('Profile completed successfully! Setting up your dashboard...');
       router.push('/dashboard/trainer-admin');
     } catch (err) {
+      console.error('Profile completion error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(errorMessage);
       toast.error(errorMessage);

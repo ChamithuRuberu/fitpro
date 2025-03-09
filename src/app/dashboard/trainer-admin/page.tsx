@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { FiUsers, FiCalendar, FiDollarSign, FiPlus, FiPackage, FiUser, FiMapPin, FiActivity, FiLogOut } from 'react-icons/fi';
 import type { ClientData } from '@/types/dashboard';
 import type { NutritionItem } from '@/types/nutrition';
 import toast, { Toaster } from 'react-hot-toast';
+import { checkTrainerAuth } from '@/actions';
 
+const API_BASE_URL = 'http://localhost:8080/api';
 const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
 
 // Sample data
@@ -68,6 +71,7 @@ interface TrainerProfileData {
 }
 
 export default function TrainerDashboard() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'supplements'>('overview');
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -81,177 +85,33 @@ export default function TrainerDashboard() {
   });
 
   useEffect(() => {
-    // Check if trainer has completed their profile
-    const checkProfile = async () => {
-      try {
-        const username = localStorage.getItem('username');
-        const token = localStorage.getItem('token');
-        const isAuthenticated = localStorage.getItem('isAuthenticated');
-        const userRoleStr = localStorage.getItem('user_role');
+    const verifyAuth = async () => {
+      console.log('Verifying trainer authentication...');
+      const result = await checkTrainerAuth();
+      console.log('Auth check result:', result);
 
-        console.log('Dashboard Auth Check:', {
-          username,
-          hasToken: !!token,
-          isAuthenticated,
-          userRole: userRoleStr
-        });
+      if (!result.success) {
+        console.error('Authentication failed:', result.error);
+        toast.error('Please login to access the dashboard');
+        router.push('/trainer-login');
+        return;
+      }
 
-        // Verify all required auth data exists
-        if (!username || !token || !isAuthenticated || !userRoleStr) {
-          console.error('Missing authentication credentials');
-          toast.error('Please login to access the dashboard');
-          localStorage.clear();
-          window.location.href = '/login';
-          return;
-        }
-
-        // Verify user role
-        try {
-          const userRole = JSON.parse(userRoleStr);
-          if (!userRole || userRole.name !== 'ROLE_TRAINER') {
-            console.error('Invalid user role');
-            toast.error('Unauthorized access');
-            localStorage.clear();
-            window.location.href = '/login';
-            return;
-          }
-        } catch (e) {
-          console.error('Error parsing user role:', e);
-          toast.error('Session error');
-          localStorage.clear();
-          window.location.href = '/login';
-          return;
-        }
-
-        // Verify token is valid with a simpler endpoint first
-        const authCheckResponse = await fetch('', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        });
-
-        if (!authCheckResponse.ok) {
-          console.error('Token validation failed');
-          localStorage.clear();
-          toast.error('Session expired. Please login again');
-          window.location.href = '/login';
-          return;
-        }
-
-        // Now fetch trainer profile
-        const response = await fetch(``, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        });
-
-        console.log('Profile verification response:', {
-          status: response.status,
-          ok: response.ok
-        });
-
-        // Handle specific response statuses
-        if (response.status === 401 || response.status === 403) {
-          console.error('Authentication token expired or invalid');
-          localStorage.clear();
-          toast.error('Session expired. Please login again');
-          window.location.href = '/login';
-          return;
-        }
-
-        if (response.status === 404) {
-          console.log('Profile not found, showing setup modal');
-          setShowProfileSetup(true);
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch profile data');
-        }
-
-        const data = await response.json();
-        console.log('Profile data:', data);
-        
-        if (data && data.name) {
-          setProfileData(data);
-        } else {
-          console.log('Empty profile data, showing setup modal');
-          setShowProfileSetup(true);
-        }
-      } catch (error) {
-        console.error('Error checking profile:', error);
-        toast.error('Failed to load profile');
-        // Don't redirect on general errors, only auth errors
+      if (!result.profileComplete) {
+        console.log('Profile incomplete, showing setup modal');
+        setShowProfileSetup(true);
       }
     };
 
-    checkProfile();
-  }, []);
+    verifyAuth();
+  }, [router]);
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const username = localStorage.getItem('user_id');
-      const token = localStorage.getItem('token');
-
-      const response = await fetch(``, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(profileData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update profile');
-      }
-
-      const data = await response.json();
-      toast.success('Profile updated successfully');
-      setShowProfileSetup(false);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
-    } finally {
-      setLoading(false);
-    }
+   
   };
 
   const handleLogout = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch('http://localhost:8080/api/user/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ token })
-      });
-
-      if (!response.ok) {
-        throw new Error('Logout failed');
-      }
-
-      // Clear all stored data
-      localStorage.clear();
-      toast.success('Logged out successfully');
-      window.location.href = '/login';
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Failed to logout');
-      // Still redirect to login in case of error
-      localStorage.clear();
-      window.location.href = '/login';
-    }
+   
   };
 
   return (
