@@ -84,20 +84,20 @@ export default function TrainerDashboard() {
     // Check if trainer has completed their profile
     const checkProfile = async () => {
       try {
-        const userId = localStorage.getItem('user_id');
+        const username = localStorage.getItem('username');
         const token = localStorage.getItem('token');
         const isAuthenticated = localStorage.getItem('isAuthenticated');
         const userRoleStr = localStorage.getItem('user_role');
 
         console.log('Dashboard Auth Check:', {
-          userId,
+          username,
           hasToken: !!token,
           isAuthenticated,
           userRole: userRoleStr
         });
 
         // Verify all required auth data exists
-        if (!userId || !token || !isAuthenticated || !userRoleStr) {
+        if (!username || !token || !isAuthenticated || !userRoleStr) {
           console.error('Missing authentication credentials');
           toast.error('Please login to access the dashboard');
           localStorage.clear();
@@ -195,7 +195,7 @@ export default function TrainerDashboard() {
     setLoading(true);
 
     try {
-      const userId = localStorage.getItem('user_id');
+      const username = localStorage.getItem('user_id');
       const token = localStorage.getItem('token');
 
       const response = await fetch(``, {

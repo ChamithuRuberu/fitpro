@@ -1,12 +1,15 @@
 import type { SessionOptions } from 'iron-session';
 
 export interface SessionData {
-  userId?: string;
+  username?: string;
   email?: string;
-  fullName?: string;
+  fullName?: string;  
   role?: string;
   isLoggedIn: boolean;
   token?: string;
+  userStatus?: string;
+  trainerId?: string;
+  city?: string;
 }
 
 export const sessionOptions: SessionOptions = {

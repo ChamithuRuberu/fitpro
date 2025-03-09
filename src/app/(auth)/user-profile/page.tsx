@@ -48,10 +48,10 @@ export default function RegisterPage() {
   useEffect(() => {
     const checkSession = async () => {
       const session = await getSession();
-      if (session.userId) {
+      if (session.username) {
         setFormData(prev => ({
           ...prev,
-          username: session.userId || ''
+          username: session.username || ''
         }));
       } else {
         router.replace('/signup');

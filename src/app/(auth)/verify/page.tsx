@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FiLock } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
+import { verifyOTP } from '@/actions';
 
 export default function VerifyPage() {
   const router = useRouter();
@@ -15,42 +16,36 @@ export default function VerifyPage() {
     e.preventDefault();
     setLoading(true);
     
+    const username = searchParams.get('username');
+    if (!username) {
+      toast.error('Username is required');
+      setLoading(false);
+      return;
+    }
+
+    const loadingToast = toast.loading('Verifying...');
+    
     try {
-      const response = await fetch('http://localhost:8080/api/user/register-verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          username: searchParams.get('username'),
-          otp: otp
-        })
-      });
+      const result = await verifyOTP(username, otp);
 
-      const data = await response.json();
-      console.log('Response:', data);
+      if (!result.success) {
+        throw new Error(result.error || 'Verification failed');
+      }
 
-      if (data.code === '0000') {
-        toast.success('Account verified successfully!');
-        
-        // Store user data
-        localStorage.setItem('user_id', data.data.user_id);
-        localStorage.setItem('user_status', data.data.user_status);
-        
-        // Navigate based on trainer_id
-        if (data.data.trainer_id === null) {
-          router.push('/user-profile');
-        } else {
-          localStorage.setItem('trainer_id', data.data.trainer_id);
-          router.push('/trainer-profile');
-        }
+      toast.success('Account verified successfully!');
+      
+      // Navigate based on user type
+      if (result.isTrainer) {
+        router.push('/trainer-profile');
       } else {
-        toast.error(data.message || 'Verification failed');
+        router.push('/user-profile');
       }
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Failed to verify OTP');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to verify OTP';
+      toast.error(errorMessage);
     } finally {
+      toast.dismiss(loadingToast);
       setLoading(false);
     }
   };
@@ -86,7 +81,7 @@ export default function VerifyPage() {
                   required
                   maxLength={6}
                   pattern="\d{6}"
-                  className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition duration-150"
                   placeholder="Enter 6-digit OTP"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
@@ -97,7 +92,7 @@ export default function VerifyPage() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition duration-150 ${
                 loading 
                   ? 'bg-blue-400 cursor-not-allowed' 
                   : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'

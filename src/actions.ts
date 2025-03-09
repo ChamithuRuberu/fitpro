@@ -25,7 +25,7 @@ export const user_login = async (email: string, password: string) => {
         const data = await response.json();
 
         if (data.code === "0000") {
-            session.userId = data.data.user_id;
+            session.username = data.data.user_id;
             session.email = email;
             session.token = data.data.token;
             session.isLoggedIn = true;
@@ -60,7 +60,7 @@ export const trainer_login = async (email: string, password: string) => {
 
         if (data.code === "0000") {
             // Store trainer session data
-            session.userId = data.data.user.id;
+            session.username = data.data.user.id;
             session.email = email;
             session.fullName = data.data.user.full_name;
             session.token = data.data.token;
@@ -103,7 +103,7 @@ export const registerUser = async (userData: any) => {
 
         if (data.code === "0000") {
             const session = await getIronSession<SessionData>(cookies(), sessionOptions);
-            session.userId = data.data.user_id;
+            session.username = data.data.user_id;
             session.email = userData.username;
             session.fullName = userData.full_name;
             session.role = 'ROLE_USER';
@@ -120,6 +120,8 @@ export const registerUser = async (userData: any) => {
 }
 
 export const verifyOTP = async (username: string, otp: string) => {
+    const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+    
     try {
         const response = await fetch(`${API_BASE_URL}/user/register-verify`, {
             method: 'POST',
@@ -132,13 +134,24 @@ export const verifyOTP = async (username: string, otp: string) => {
         const data = await response.json();
 
         if (data.code === "0000") {
-            const session = await getIronSession<SessionData>(cookies(), sessionOptions);
-            session.userId = data.data.user_id;
+            // Store verification data in session
+            session.username = data.data.user_id;
+            session.userStatus = data.data.user_status;
             session.isLoggedIn = false; // Not fully logged in until profile is complete
+            
+            // If trainer_id exists, store it
+            if (data.data.trainer_id) {
+                session.trainerId = data.data.trainer_id.toString();
+            }
+            
             await session.save();
-            return { success: true, data: data.data };
+            return { 
+                success: true, 
+                data: data.data,
+                isTrainer: data.data.trainer_id !== null 
+            };
         }
-
+        
         return { success: false, error: data.message };
     } catch (error) {
         return { success: false, error: 'Verification failed' };
@@ -172,7 +185,7 @@ export const initializeRegistration = async (userData: {
 
         if (data.code === "0000") {
             // Store initial registration data in session
-            session.userId = data.data.app_user_id;
+            session.username = data.data.app_user_id;
             session.email = userData.email;
             session.role = userData.role_type;
             session.isLoggedIn = false;
@@ -187,5 +200,64 @@ export const initializeRegistration = async (userData: {
         return { success: false, error: data.message };
     } catch (error) {
         return { success: false, error: 'Registration initialization failed' };
+    }
+}
+
+export interface TrainerProfileData {
+  username: string;
+  name: string;
+  city: string;
+  password: string;
+  role_type: string;
+  servicePeriod: string;
+  weight: string;
+  height: string;
+  profile: string;
+}
+
+export const completeTrainerProfile = async (profileData: TrainerProfileData) => {
+    console.log('Starting trainer profile completion...', { profileData });
+    const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+    console.log('Current session:', session);
+    
+    try {
+        console.log('Making API request to register trainer...');
+        const response = await fetch(`${API_BASE_URL}/user/gov-user/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(profileData),
+        });
+
+        const data = await response.json();
+
+        if (data.code === "0000") {
+            console.log('Registration successful, updating session...');
+            // Update session with new user data
+            session.username = data.data.user.username;
+            session.email = data.data.user.email;
+            session.fullName = data.data.user.full_name;
+            session.token = data.data.token;
+            session.role = 'ROLE_TRAINER';
+            session.isLoggedIn = true;
+            session.city = data.data.user.city;
+            session.userStatus = data.data.user.status;
+            
+            console.log('Saving session with new data:', session);
+            await session.save();
+            console.log('Session saved successfully');
+            
+            return { 
+                success: true, 
+                data: data.data 
+            };
+        }
+        
+        return { success: false, error: data.message || 'Failed to complete profile' };
+    } catch (error) {
+        console.error('Error during trainer profile completion:', error);
+        return { success: false, error: 'Failed to complete profile' };
     }
 }
