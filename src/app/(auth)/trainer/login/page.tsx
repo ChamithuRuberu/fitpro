@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiMail, FiLock } from 'react-icons/fi';
+import { FiMail, FiLock, FiUser } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
 
 interface LoginFormData {
@@ -11,7 +11,7 @@ interface LoginFormData {
   password: string;
 }
 
-export default function LoginPage() {
+export default function TrainerLoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
@@ -67,15 +67,31 @@ export default function LoginPage() {
       // Check if user is a trainer
       const userRole = data.data.user.roles[0];
       if (userRole === 'ROLE_TRAINER') {
-        // Not allowed in main login
-        toast.error('Please use the trainer login page');
-        await authService.logout();
-        return;
-      }
+        // Check if trainer has completed profile
+        const profileResponse = await fetch('http://localhost:8080/api/trainer/profile', {
+          headers: {
+            'Authorization': `Bearer ${data.data.token}`,
+            'Accept': 'application/json'
+          }
+        });
 
-      // Regular user login successful
-      toast.success('Login successful!');
-      router.push('/dashboard/user');
+        if (profileResponse.status === 404) {
+          // Trainer hasn't completed profile
+          toast.success('Please complete your profile');
+          router.push('/trainer-profile');
+          return;
+        } else if (!profileResponse.ok) {
+          throw new Error('Failed to fetch trainer profile');
+        }
+
+        // Trainer has completed profile
+        toast.success('Login successful!');
+        router.push('/dashboard/trainer');
+      } else {
+        // Not a trainer
+        toast.error('Access denied. This login is for trainers only.');
+        await authService.logout();
+      }
     } catch (err) {
       console.error('Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during login';
@@ -91,23 +107,18 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <Toaster position="top-right" />
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Sign in to your account
-        </h2>
-        <div className="mt-2 text-center text-sm text-gray-600 space-y-2">
-          <p>
-            Don't have an account?{' '}
-            <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-              Sign up
-            </Link>
-          </p>
-          <p>
-            Are you a trainer?{' '}
-            <Link href="/trainer/login" className="font-medium text-blue-600 hover:text-blue-500">
-              Sign in as trainer
-            </Link>
-          </p>
+        <div className="flex justify-center">
+          <FiUser className="h-12 w-12 text-blue-600" />
         </div>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Trainer Sign In
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Not a trainer?{' '}
+          <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            Go to main login
+          </Link>
+        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -191,8 +202,18 @@ export default function LoginPage() {
                     : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
                 }`}
               >
-                {loading ? 'Signing in...' : 'Sign in'}
+                {loading ? 'Signing in...' : 'Sign in as Trainer'}
               </button>
+            </div>
+
+            {/* Sign Up Link */}
+            <div className="text-center">
+              <p className="text-sm text-gray-600">
+                Want to become a trainer?{' '}
+                <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+                  Sign up here
+                </Link>
+              </p>
             </div>
           </form>
         </div>
