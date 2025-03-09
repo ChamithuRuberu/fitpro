@@ -10,24 +10,6 @@ interface VerifyFormData {
   otp: string;
 }
 
-interface RegistrationData {
-  username: string;
-  name: string;
-  profile: string;
-  full_name: string;
-  birth_of_date: string;
-  address_no: string;
-  address_street: string;
-  city: string;
-  password: string;
-  postalCode: string;
-  role_type: string;
-  servicePeriod: string;
-  weight: string;
-  height: string;
-  injuries: string;
-}
-
 export default function VerifyPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -66,8 +48,7 @@ export default function VerifyPage() {
     const verifyToast = toast.loading('Verifying your account...');
 
     try {
-      // First, verify the OTP
-      const verifyResponse = await fetch('http://localhost:8080/api/user/register-verify', {
+      const response = await fetch('http://localhost:8080/api/user/register-verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,69 +60,66 @@ export default function VerifyPage() {
         }),
       });
 
-      if (!verifyResponse.ok) {
-        const errorData = await verifyResponse.text();
+      if (!response.ok) {
+        const errorData = await response.text();
         toast.error(errorData || 'Verification failed');
-        throw new Error(`Verification failed: ${verifyResponse.status} ${verifyResponse.statusText}`);
+        throw new Error(
+          `Verification failed: ${response.status} ${response.statusText}. ${errorData}`
+        );
       }
 
-      const verifyData = await verifyResponse.json();
+      const data = await response.json();
       
-      // Get the stored registration data
-      const storedData = localStorage.getItem('registrationData');
-      if (!storedData) {
-        throw new Error('Registration data not found');
-      }
-
-      const registrationData: RegistrationData = JSON.parse(storedData);
-
-      // Complete the registration with the stored data
-      const registerResponse = await fetch('http://localhost:8080/api/user/app-user/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(registrationData),
-      });
-
-      if (!registerResponse.ok) {
-        const errorData = await registerResponse.text();
-        toast.error(errorData || 'Registration failed');
-        throw new Error(`Registration failed: ${registerResponse.status} ${registerResponse.statusText}`);
-      }
-
-      const registerData = await registerResponse.json();
-
       // Store authentication data if token is present
-      if (verifyData.token) {
-        localStorage.setItem('token', verifyData.token);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
       }
-
-      // Check if user has a trainer_id
-      const trainerId = localStorage.getItem('trainer_id');
-
-      // Clear registration data
-      localStorage.removeItem('registrationData');
-      localStorage.removeItem('isRegistering');
-
-      // Navigate based on role and trainer_id
-      if (registrationData.role_type === 'ROLE_TRAINER') {
-        toast.success('Account verified! Redirecting to trainer profile setup...');
-        router.push('/trainer-profile');
-      } else {
-        if (trainerId) {
-          toast.success('Account verified! Redirecting to trainer profile...');
-          router.push('/trainer-profile');
-        } else {
-          toast.success('Account verified! Redirecting to user profile...');
-          router.push('/user-profile');
+      
+      try {
+        // Get the registration data from localStorage
+        const registrationData = localStorage.getItem('registrationData');
+        if (!registrationData) {
+          throw new Error('Registration data not found');
         }
-      }
 
+        const parsedData = JSON.parse(registrationData);
+        console.log('Registration data:', parsedData);
+
+        // Check if user is a trainer by looking at the user_role array
+        const trainerRole = parsedData.data?.user_role?.[0];
+        console.log('User role:', trainerRole);
+
+        if (trainerRole && trainerRole.name === 'ROLE_TRAINER') {
+          console.log('User is a trainer, storing session data');
+          
+          // Store necessary data for trainer session
+          localStorage.setItem('temp_trainer_id', parsedData.data.app_user_id);
+          localStorage.setItem('trainer_role', JSON.stringify(trainerRole));
+          localStorage.setItem('isVerified', 'true');
+          
+          // Clear registration data as it's no longer needed
+          localStorage.removeItem('registrationData');
+          localStorage.removeItem('isRegistering');
+          
+          toast.success('Account verified! Redirecting to complete your profile...');
+          
+          // Redirect to trainer profile completion
+          window.location.href = '/trainer-profile';
+          return;
+        } else {
+          // Handle non-trainer users
+          toast.success('Account verified! Redirecting to login...');
+          window.location.href = '/login';
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking trainer role:', error);
+        toast.error('Authentication failed. Please try again.');
+        window.location.href = '/login';
+        return;
+      }
     } catch (err) {
-      console.error('Verification error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during verification';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
