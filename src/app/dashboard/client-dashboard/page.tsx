@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { FiCalendar, FiActivity, FiTrendingUp, FiPackage, FiDollarSign, FiUser, FiPlus, FiLogOut } from 'react-icons/fi';
-import { AuthService } from '@/services/auth.service';
 import toast, { Toaster } from 'react-hot-toast';
 
 const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
@@ -79,39 +78,13 @@ export default function ClientDashboard() {
   };
 
   useEffect(() => {
-    const authService = new AuthService();
-    const auth = authService.getAuthData();
 
-    // Check if user is authenticated and is a client
-    if (!auth.token || auth.role_type !== 'ROLE_USER') {
-      router.push('/login');
-      return;
-    }
-
-    // Set user data
-    if (auth.user) {
-      setUserData(auth.user);
-    }
-
+    
     // TODO: Fetch actual schedule, supplements, and workout program data from the API
     // For now, we'll leave these sections empty
   }, [router]);
 
-  const handleLogout = () => {
-    try {
-      const authService = new AuthService();
-      authService.logout();
-      toast.success('Logged out successfully');
-      router.push('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Failed to logout');
-    }
-  };
-
-  if (!userData) {
-    return <div>Loading...</div>;
-  }
+ 
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -121,11 +94,10 @@ export default function ClientDashboard() {
       <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-gray-900">{getGreeting()}, {userData.full_name}</h1>
+            {/* <h1 className="text-2xl font-semibold text-gray-900">{getGreeting()}, {userData.full_name}</h1> */}
             <div className="flex items-center space-x-6">
 
               <button
-                onClick={handleLogout}
                 className="flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
               >
                 <FiLogOut className="w-4 h-4 mr-2" />
@@ -175,8 +147,8 @@ export default function ClientDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Contact Info</p>
-                    <p className="text-lg font-semibold text-gray-900">{userData.mobile}</p>
-                    <p className="text-sm text-gray-600">{userData.email}</p>
+                    {/* <p className="text-lg font-semibold text-gray-900">{userData.mobile}</p> */}
+                    {/* <p className="text-sm text-gray-600">{userData.email}</p> */}
                   </div>
                   <div className="p-3 bg-blue-50 rounded-full">
                     <FiUser className="w-6 h-6 text-blue-600" />
@@ -193,7 +165,7 @@ export default function ClientDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Location</p>
-                    <p className="text-lg font-semibold text-gray-900">{userData.city}</p>
+                    {/* <p className="text-lg font-semibold text-gray-900">{userData.city}</p> */}
                     <p className="text-sm text-gray-600">Current City</p>
                   </div>
                   <div className="p-3 bg-green-50 rounded-full">
@@ -211,7 +183,7 @@ export default function ClientDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Account Status</p>
-                    <p className="text-lg font-semibold text-gray-900">{userData.status}</p>
+                    {/* <p className="text-lg font-semibold text-gray-900">{userData.status}</p> */}
                     <p className="text-sm text-gray-600">Current Status</p>
                   </div>
                   <div className="p-3 bg-purple-50 rounded-full">

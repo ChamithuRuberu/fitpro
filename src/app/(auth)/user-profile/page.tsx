@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiUser, FiLock, FiCalendar, FiMapPin } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
-import { getSession, registerUser } from '@/actions';
+import { completeUserProfile, getSession } from '@/actions';
 
-interface RegisterFormData {
+interface RegisterUserFormData {
   username: string;
   name: string;
   profile: string;
@@ -27,7 +27,7 @@ interface RegisterFormData {
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<RegisterFormData>({
+  const [formData, setFormData] = useState<RegisterUserFormData>({
     username: '',
     name: '',
     profile: '',
@@ -84,11 +84,11 @@ export default function RegisterPage() {
         injuries: formData.injuries || "None"
       };
 
-      const result = await registerUser(requestData);
+      const result = await completeUserProfile(requestData);
 
       if (result.success) {
         toast.success('Profile created successfully!');
-        router.replace('/dashboard/client');
+        router.replace('/dashboard/client-dashboard');
       } else {
         toast.error(result.error || 'Registration failed');
       }
@@ -134,6 +134,7 @@ export default function RegisterPage() {
                   required
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   value={formData.username}
+                  disabled
                   onChange={handleInputChange}
                 />
               </div>

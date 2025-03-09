@@ -1,65 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { FiUsers, FiCalendar, FiDollarSign, FiPlus, FiPackage, FiUser, FiMapPin, FiActivity, FiLogOut } from 'react-icons/fi';
-import type { ClientData } from '@/types/dashboard';
-import type { NutritionItem } from '@/types/nutrition';
 import toast, { Toaster } from 'react-hot-toast';
-import { checkTrainerAuth } from '@/actions';
+import { checkTrainerAuth, logoutTrainer, getTrainerClients, getRecommendedSupplements, getSession } from '@/actions';
+import type { TrainerStats, ClientData, NutritionItem } from '@/actions';
+import { getIronSession } from 'iron-session';
 
-const API_BASE_URL = 'http://localhost:8080/api';
-const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
-
-// Sample data
-const trainerStats = {
-  monthlyRevenue: 8500,
-  activeClients: 25,
-  completedSessions: 82,
-  upcomingSessions: 12,
-  averageRating: 4.9,
-};
-
-const clients: ClientData[] = [
-  {
-    id: '1',
-    name: 'Alice Johnson',
-    program: 'Weight Loss Program',
-    trainer: 'John Smith',
-    progress: 75,
-    attendance: 90,
-    nextSession: '2024-03-15 10:00 AM',
-    subscriptionStatus: 'active',
-  },
-  // Add more clients...
-];
-
-const recommendedSupplements: NutritionItem[] = [
-  {
-    id: '1',
-    name: 'Whey Protein Isolate',
-    category: 'supplement',
-    subCategory: 'Protein',
-    description: 'High-quality protein supplement for muscle recovery and growth',
-    benefits: ['Muscle Recovery', 'Protein Synthesis', 'Amino Acids'],
-    image: '/images/nutrition/whey-protein.jpg',
-    tags: ['protein', 'muscle-building', 'post-workout'],
-    nutritionalInfo: {
-      calories: 120,
-      protein: 24,
-      carbs: 3,
-      fats: 2,
-    },
-    servingSize: '30g scoop',
-    price: {
-      amount: 29.99,
-      currency: 'USD',
-    },
-  },
-  // Add more supplements...
-];
 
 interface TrainerProfileData {
   name: string;
@@ -75,7 +24,11 @@ export default function TrainerDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'supplements'>('overview');
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [profileData, setProfileData] = useState<TrainerProfileData>({
+  const [stats, setStats] = useState<TrainerStats | null>(null);
+  const [clients, setClients] = useState<ClientData[]>([]);
+  const [supplements, setSupplements] = useState<NutritionItem[]>([]);
+ 
+  const [TrainerProfileData, setFormData] = useState<TrainerProfileData>({
     name: '',
     city: '',
     servicePeriod: '',
@@ -85,33 +38,61 @@ export default function TrainerDashboard() {
   });
 
   useEffect(() => {
-    const verifyAuth = async () => {
-      console.log('Verifying trainer authentication...');
-      const result = await checkTrainerAuth();
-      console.log('Auth check result:', result);
-
-      if (!result.success) {
-        console.error('Authentication failed:', result.error);
-        toast.error('Please login to access the dashboard');
-        router.push('/trainer-login');
-        return;
+    const checkSession = async () => {
+      const session = await getSession();
+      if (session.username) {
+        setFormData(prev => ({
+          ...prev,
+          username: session.username || ''
+        }));
+      } else {
+        router.replace('/signup');
       }
+    };
+    
+    checkSession();
+  }, [router]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch data based on active tab
+        if (activeTab === 'overview') {
 
-      if (!result.profileComplete) {
-        console.log('Profile incomplete, showing setup modal');
-        setShowProfileSetup(true);
+        } else if (activeTab === 'clients') {
+          const clientsResult = await getTrainerClients();
+          if (clientsResult.success && clientsResult.data) {
+            setClients(clientsResult.data);
+          } else {
+            toast.error('Failed to load clients');
+          }
+        } else if (activeTab === 'supplements') {
+          const supplementsResult = await getRecommendedSupplements();
+          if (supplementsResult.success && supplementsResult.data) {
+            setSupplements(supplementsResult.data);
+          } else {
+            toast.error('Failed to load supplements');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast.error('Failed to load data');
       }
     };
 
-    verifyAuth();
-  }, [router]);
+    fetchData();
+  }, [activeTab]);
 
-  const handleProfileSubmit = async (e: React.FormEvent) => {
-   
-  };
+
 
   const handleLogout = async () => {
-   
+    try {
+      await logoutTrainer();
+      toast.success('Logged out successfully');
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to logout');
+    }
   };
 
   return (
@@ -131,14 +112,14 @@ export default function TrainerDashboard() {
           </div>
         </div>
       </div>
-      
-      
+
+
       {/* Profile Setup Modal */}
       {showProfileSetup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
             <h2 className="text-2xl font-semibold mb-6">Complete Your Profile</h2>
-            <form onSubmit={handleProfileSubmit} className="space-y-6">
+            <form className="space-y-6">
               {/* Name Field */}
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -154,8 +135,8 @@ export default function TrainerDashboard() {
                     type="text"
                     required
                     className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    value={profileData.name}
-                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                    value={TrainerProfileData.name}
+                    onChange={(e) => setFormData({ ...TrainerProfileData, name: e.target.value })}
                   />
                 </div>
               </div>
@@ -175,8 +156,8 @@ export default function TrainerDashboard() {
                     type="text"
                     required
                     className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    value={profileData.city}
-                    onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
+                    value={TrainerProfileData.city}
+                    onChange={(e) => setFormData({ ...TrainerProfileData, city: e.target.value })}
                   />
                 </div>
               </div>
@@ -194,8 +175,8 @@ export default function TrainerDashboard() {
                   step="0.5"
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={profileData.servicePeriod}
-                  onChange={(e) => setProfileData({ ...profileData, servicePeriod: e.target.value })}
+                  value={TrainerProfileData.servicePeriod}
+                  onChange={(e) => setFormData({ ...TrainerProfileData, servicePeriod: e.target.value })}
                 />
               </div>
 
@@ -217,8 +198,8 @@ export default function TrainerDashboard() {
                       max="200"
                       required
                       className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      value={profileData.weight}
-                      onChange={(e) => setProfileData({ ...profileData, weight: e.target.value })}
+                      value={TrainerProfileData.weight}
+                      onChange={(e) => setFormData({ ...TrainerProfileData, weight: e.target.value })}
                     />
                   </div>
                 </div>
@@ -239,8 +220,8 @@ export default function TrainerDashboard() {
                       max="250"
                       required
                       className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      value={profileData.height}
-                      onChange={(e) => setProfileData({ ...profileData, height: e.target.value })}
+                      value={TrainerProfileData.height}
+                      onChange={(e) => setFormData({ ...TrainerProfileData, height: e.target.value })}
                     />
                   </div>
                 </div>
@@ -258,19 +239,18 @@ export default function TrainerDashboard() {
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Describe your experience and expertise..."
-                  value={profileData.profile}
-                  onChange={(e) => setProfileData({ ...profileData, profile: e.target.value })}
+                  value={TrainerProfileData.profile}
+                  onChange={(e) => setFormData({ ...TrainerProfileData, profile: e.target.value })}
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-                  loading 
-                    ? 'bg-blue-400 cursor-not-allowed' 
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${loading
+                    ? 'bg-blue-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                }`}
+                  }`}
               >
                 {loading ? 'Updating...' : 'Update Profile'}
               </button>
@@ -282,13 +262,14 @@ export default function TrainerDashboard() {
       {/* Dashboard Header */}
       <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-gray-900">Trainer Dashboard</h1>
-            <div className="flex space-x-4">
-              <button className="btn-primary flex items-center gap-2">
-                <FiPlus className="w-5 h-5" />
-                Add New Client
-              </button>
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">User Information</h2>
+            <div className="space-y-3">
+               {/* <p className="text-black"><strong>Full Name:</strong> {setFormData.fullName}</p> 
+              <p className="text-gray-700"><strong>Status:</strong> {result.status}</p>
+              <p className="text-gray-700"><strong>City:</strong> {result.city}</p>
+              <p className="text-gray-700"><strong>Email:</strong> {result.email}</p>
+              <p className="text-gray-700"><strong>User ID:</strong> {result.user_id}</p>  */}
             </div>
           </div>
 
@@ -298,11 +279,10 @@ export default function TrainerDashboard() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  activeTab === tab
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === tab
                     ? 'bg-blue-50 text-blue-600'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
@@ -314,7 +294,7 @@ export default function TrainerDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         {/* Stats Overview */}
-        {activeTab === 'overview' && (
+        {activeTab === 'overview' && stats && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <motion.div
@@ -325,7 +305,7 @@ export default function TrainerDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
-                    <p className="text-2xl font-semibold text-gray-900">${trainerStats.monthlyRevenue.toLocaleString()}</p>
+                    <p className="text-2xl font-semibold text-gray-900">${stats.monthlyRevenue.toLocaleString()}</p>
                   </div>
                   <div className="p-3 bg-blue-50 rounded-full">
                     <FiDollarSign className="w-6 h-6 text-blue-600" />
@@ -342,7 +322,7 @@ export default function TrainerDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Active Clients</p>
-                    <p className="text-2xl font-semibold text-gray-900">{trainerStats.activeClients}</p>
+                    <p className="text-2xl font-semibold text-gray-900">{stats.activeClients}</p>
                   </div>
                   <div className="p-3 bg-green-50 rounded-full">
                     <FiUsers className="w-6 h-6 text-green-600" />
@@ -359,7 +339,7 @@ export default function TrainerDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Upcoming Sessions</p>
-                    <p className="text-2xl font-semibold text-gray-900">{trainerStats.upcomingSessions}</p>
+                    <p className="text-2xl font-semibold text-gray-900">{stats.upcomingSessions}</p>
                   </div>
                   <div className="p-3 bg-purple-50 rounded-full">
                     <FiCalendar className="w-6 h-6 text-purple-600" />
@@ -396,13 +376,12 @@ export default function TrainerDashboard() {
                       <h3 className="text-lg font-semibold text-gray-900">{client.name}</h3>
                       <p className="text-sm text-gray-600">{client.program}</p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      client.subscriptionStatus === 'active'
+                    <span className={`px-2 py-1 rounded-full text-xs ${client.subscriptionStatus === 'active'
                         ? 'bg-green-100 text-green-600'
                         : client.subscriptionStatus === 'expired'
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-yellow-100 text-yellow-600'
-                    }`}>
+                          ? 'bg-red-100 text-red-600'
+                          : 'bg-yellow-100 text-yellow-600'
+                      }`}>
                       {client.subscriptionStatus.charAt(0).toUpperCase() + client.subscriptionStatus.slice(1)}
                     </span>
                   </div>
@@ -449,7 +428,7 @@ export default function TrainerDashboard() {
                 </button>
               </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recommendedSupplements.map((supplement) => (
+                {supplements.map((supplement) => (
                   <motion.div
                     key={supplement.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -526,3 +505,7 @@ export default function TrainerDashboard() {
     </div>
   );
 } 
+
+function setLoading(arg0: boolean) {
+  throw new Error('Function not implemented.');
+}
