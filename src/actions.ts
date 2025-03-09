@@ -40,6 +40,55 @@ export const user_login = async (email: string, password: string) => {
     }
 }
 
+export const trainer_login = async (email: string, password: string) => {
+    const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email,
+                password,
+                role_type: 'ROLE_TRAINER'
+            }),
+        });
+
+        const data = await response.json();
+
+        if (data.code === "0000") {
+            // Store trainer session data
+            session.userId = data.data.user.id;
+            session.email = email;
+            session.fullName = data.data.user.full_name;
+            session.token = data.data.token;
+            session.isLoggedIn = true;
+            session.role = 'ROLE_TRAINER';
+            await session.save();
+
+            // Check trainer profile completion
+            const profileResponse = await fetch(`${API_BASE_URL}/trainer/profile`, {
+                headers: {
+                    'Authorization': `Bearer ${data.data.token}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            return { 
+                success: true, 
+                data: data.data,
+                profileComplete: profileResponse.status !== 404
+            };
+        }
+        
+        return { success: false, error: data.message };
+    } catch (error) {
+        return { success: false, error: 'Login failed' };
+    }
+}
+
 export const registerUser = async (userData: any) => {
     try {
         const response = await fetch(`${API_BASE_URL}/user/app-user/register`, {

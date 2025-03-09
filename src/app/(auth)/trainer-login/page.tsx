@@ -5,28 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiMail, FiLock, FiUser } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
+import { trainer_login } from '@/actions';
 
 interface LoginFormData {
   email: string;
   password: string;
-}
-
-interface LoginResponse {
-  code: string;
-  title: string;
-  message: string;
-  data: {
-    token: string;
-    refresh_token: string;
-    user: {
-      email: string;
-      city: string;
-      status: string;
-      mobile: string;
-      full_name: string;
-      gov_id: string | null;
-    };
-  };
 }
 
 export default function TrainerLoginPage() {
@@ -46,52 +29,21 @@ export default function TrainerLoginPage() {
     const loadingToast = toast.loading('Signing in...');
 
     try {
-      const response = await fetch('http://localhost:8080/api/user/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          role_type: 'ROLE_TRAINER'
-        }),
-      });
+      const result = await trainer_login(formData.email, formData.password);
 
-      const data = await response.json() as LoginResponse;
-      console.log('Login response:', data);
-
-      if (!response.ok || data.code !== '0000' || !data.data?.token) {
-        const errorMessage = data.message || 'Login failed';
-        toast.error(errorMessage);
-        throw new Error(errorMessage);
+      if (!result.success) {
+        throw new Error(result.error || 'Login failed');
       }
 
-      // Store authentication data
-      const authService = new AuthService();
-      authService.setAuthData(data, 'ROLE_TRAINER');
+      toast.success('Login successful!');
 
-      // Check if trainer has completed profile
-      const profileResponse = await fetch('http://localhost:8080/api/trainer/profile', {
-        headers: {
-          'Authorization': `Bearer ${data.data.token}`,
-          'Accept': 'application/json'
-        }
-      });
-
-      if (profileResponse.status === 404) {
-        // Trainer hasn't completed profile
+      // Redirect based on profile completion
+      if (!result.profileComplete) {
         toast.success('Please complete your profile');
         router.push('/trainer-profile');
-        return;
-      } else if (!profileResponse.ok) {
-        throw new Error('Failed to fetch trainer profile');
+      } else {
+        router.push('/dashboard/trainer');
       }
-
-      // Trainer has completed profile
-      toast.success(data.message || 'Login successful!');
-      router.push('/dashboard/trainer');
     } catch (err) {
       console.error('Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during login';
