@@ -10,16 +10,16 @@ export const logOut = async () => {
     session.destroy();
 }
 
-export const user_login = async (email: string, password: string) => {
+export const user_login = async (email: string, password: string,role_type:string) => {
     const session = await getIronSession<SessionData>(cookies(), sessionOptions);
     
     try {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        const response = await fetch(`${API_BASE_URL}/user/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ username: email, password }),
+            body: JSON.stringify({  email, password ,role_type}),
         });
 
         const data = await response.json();

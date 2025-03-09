@@ -30,14 +30,14 @@ export default function LoginPage() {
     const loadingToast = toast.loading('Signing in...');
 
     try {
-      const result = await user_login(formData.email, formData.password);
+      const result = await user_login(formData.email, formData.password,"ROLE_USER");
 
       if (!result.success) {
         throw new Error(result.error || 'Login failed');
       }
 
       toast.success('Login successful!');
-      router.push('/dashboard');
+      router.push('/dashboard/client-dashboard');
     } catch (err) {
       console.error('Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during login';
