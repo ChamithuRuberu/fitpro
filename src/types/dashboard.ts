@@ -39,4 +39,56 @@ export type DashboardStats = {
   totalGyms: number;
   activePrograms: number;
   averageRating: number;
-}; 
+};
+
+export interface UserData {
+  email: string;
+  city: string;
+  status: string;
+  mobile: string;
+  full_name: string;
+  gov_id: string | null;
+}
+
+export interface Workout {
+  time: string;
+  type: string;
+  duration: string;
+}
+
+export interface ScheduleDay {
+  id: number;
+  day: string;
+  workouts: Workout[];
+}
+
+export interface Supplement {
+  id: number;
+  name: string;
+  timing: string;
+  dosage: string;
+  benefits: string[];
+  recommended: boolean;
+}
+
+export interface Exercise {
+  name: string;
+  sets: number;
+  reps: number;
+  weight: string;
+}
+
+export interface WorkoutDay {
+  day: string;
+  exercises: Exercise[];
+}
+
+export interface WorkoutWeek {
+  weekNumber: number;
+  workouts: WorkoutDay[];
+}
+
+export interface WorkoutProgram {
+  name: string;
+  weeks: WorkoutWeek[];
+} 

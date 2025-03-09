@@ -1,129 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
-import { FiCalendar, FiActivity, FiTrendingUp, FiPackage, FiDollarSign, FiUser, FiPlus, FiLogOut } from 'react-icons/fi';
-import { AuthService } from '@/services/auth.service';
-import toast, { Toaster } from 'react-hot-toast';
+import { FiLogOut } from 'react-icons/fi';
+import { Toaster } from 'react-hot-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { QuickStats } from '@/components/dashboard/QuickStats';
+import { DASHBOARD_TABS, DashboardTabType } from '@/constants/dashboard';
+import { getGreeting } from '@/utils/dateTime';
+import type { ScheduleDay, Supplement, WorkoutProgram } from '@/types/dashboard';
 
 const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
 
-interface UserData {
-  email: string;
-  city: string;
-  status: string;
-  mobile: string;
-  full_name: string;
-  gov_id: string | null;
-}
-
-interface Workout {
-  time: string;
-  type: string;
-  duration: string;
-}
-
-interface ScheduleDay {
-  id: number;
-  day: string;
-  workouts: Workout[];
-}
-
-interface Supplement {
-  id: number;
-  name: string;
-  timing: string;
-  dosage: string;
-  benefits: string[];
-  recommended: boolean;
-}
-
-interface Exercise {
-  name: string;
-  sets: number;
-  reps: number;
-  weight: string;
-}
-
-interface WorkoutDay {
-  day: string;
-  exercises: Exercise[];
-}
-
-interface WorkoutWeek {
-  weekNumber: number;
-  workouts: WorkoutDay[];
-}
-
-interface WorkoutProgram {
-  name: string;
-  weeks: WorkoutWeek[];
-}
-
 export default function ClientDashboard() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'supplements' | 'workouts' | 'progress'>('overview');
-  const [userData, setUserData] = useState<UserData | null>(null);
+  const { userData, isLoading, handleLogout } = useAuth();
+  const [activeTab, setActiveTab] = useState<DashboardTabType>(DASHBOARD_TABS.OVERVIEW);
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
   const [supplements, setSupplements] = useState<Supplement[]>([]);
   const [workoutProgram, setWorkoutProgram] = useState<WorkoutProgram | null>(null);
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return 'Good Morning';
-    if (hour >= 12 && hour < 17) return 'Good Afternoon';
-    if (hour >= 17 && hour < 22) return 'Good Evening';
-    return 'Good Night';
-  };
-
-  useEffect(() => {
-    const authService = new AuthService();
-    const auth = authService.getAuthData();
-
-    // Check if user is authenticated and is a client
-    if (!auth.token || auth.role_type !== 'ROLE_USER') {
-      router.push('/login');
-      return;
-    }
-
-    // Set user data
-    if (auth.user) {
-      setUserData(auth.user);
-    }
-
-    // TODO: Fetch actual schedule, supplements, and workout program data from the API
-    // For now, we'll leave these sections empty
-  }, [router]);
-
-  const handleLogout = () => {
-    try {
-      const authService = new AuthService();
-      authService.logout();
-      toast.success('Logged out successfully');
-      router.push('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Failed to logout');
-    }
-  };
-
-  if (!userData) {
+  if (isLoading || !userData) {
     return <div>Loading...</div>;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" />
-
+      <Navbar />
+      
       {/* Dashboard Header */}
       <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-semibold text-gray-900">{getGreeting()}, {userData.full_name}</h1>
             <div className="flex items-center space-x-6">
-
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">Trainer:</span>
+                <span className="px-3 py-1 bg-blue-100 text-blue-600 rounded-md text-sm font-medium">
+                  Not Assigned
+                </span>
+              </div>
               <button
                 onClick={handleLogout}
                 className="flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
@@ -137,24 +53,19 @@ export default function ClientDashboard() {
           {/* Tab Navigation */}
           <div className="flex justify-between items-center mt-6">
             <div className="flex space-x-4">
-              {['overview', 'schedule', 'supplements', 'workouts', 'progress'].map((tab) => (
+              {Object.values(DASHBOARD_TABS).map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab as any)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === tab
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                    activeTab === tab
                       ? 'bg-blue-50 text-blue-600'
                       : 'text-gray-600 hover:bg-gray-50'
-                    }`}
+                  }`}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
               ))}
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">Trainer:</span>
-              <span className="px-3 py-1 bg-blue-100 text-blue-600 rounded-md text-sm font-medium">
-                Not Assigned
-              </span>
             </div>
           </div>
         </div>
@@ -163,80 +74,25 @@ export default function ClientDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         {/* Overview Tab */}
-        {activeTab === 'overview' && (
+        {activeTab === DASHBOARD_TABS.OVERVIEW && (
           <div className="space-y-6">
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-xl shadow-sm p-6"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Contact Info</p>
-                    <p className="text-lg font-semibold text-gray-900">{userData.mobile}</p>
-                    <p className="text-sm text-gray-600">{userData.email}</p>
-                  </div>
-                  <div className="p-3 bg-blue-50 rounded-full">
-                    <FiUser className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-white rounded-xl shadow-sm p-6"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Location</p>
-                    <p className="text-lg font-semibold text-gray-900">{userData.city}</p>
-                    <p className="text-sm text-gray-600">Current City</p>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-full">
-                    <FiDollarSign className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white rounded-xl shadow-sm p-6"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Account Status</p>
-                    <p className="text-lg font-semibold text-gray-900">{userData.status}</p>
-                    <p className="text-sm text-gray-600">Current Status</p>
-                  </div>
-                  <div className="p-3 bg-purple-50 rounded-full">
-                    <FiActivity className="w-6 h-6 text-purple-600" />
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-
+            <QuickStats userData={userData} />
           </div>
         )}
 
         {/* Schedule Tab */}
-        {activeTab === 'schedule' && (
+        {activeTab === DASHBOARD_TABS.SCHEDULE && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Weekly Schedule</h2>
             </div>
             <div className="divide-y divide-gray-200">
               {schedule.length > 0 ? (
-                schedule.map((day: ScheduleDay) => (
+                schedule.map((day) => (
                   <div key={day.id} className="p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{day.day}</h3>
                     <div className="space-y-4">
-                      {day.workouts.map((workout: Workout, index: number) => (
+                      {day.workouts.map((workout, index) => (
                         <div key={index} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
                           <div>
                             <p className="font-medium">{workout.type}</p>
@@ -258,14 +114,14 @@ export default function ClientDashboard() {
         )}
 
         {/* Supplements Tab */}
-        {activeTab === 'supplements' && (
+        {activeTab === DASHBOARD_TABS.SUPPLEMENTS && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Recommended Supplements</h2>
             </div>
             <div className="grid md:grid-cols-2 gap-6 p-6">
               {supplements.length > 0 ? (
-                supplements.map((supplement: Supplement) => (
+                supplements.map((supplement) => (
                   <div key={supplement.id} className="bg-white border rounded-xl p-6 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-4">
                       <h3 className="text-lg font-semibold text-gray-900">{supplement.name}</h3>
@@ -287,9 +143,9 @@ export default function ClientDashboard() {
                       <div>
                         <p className="text-sm text-gray-600">Benefits</p>
                         <div className="flex flex-wrap gap-2 mt-1">
-                          {supplement.benefits.map((benefit: string, index: number) => (
+                          {supplement.benefits.map((benefit) => (
                             <span
-                              key={index}
+                              key={benefit}
                               className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
                             >
                               {benefit}
@@ -310,7 +166,7 @@ export default function ClientDashboard() {
         )}
 
         {/* Workouts Tab */}
-        {activeTab === 'workouts' && (
+        {activeTab === DASHBOARD_TABS.WORKOUTS && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
@@ -352,7 +208,7 @@ export default function ClientDashboard() {
         )}
 
         {/* Progress Tab */}
-        {activeTab === 'progress' && (
+        {activeTab === DASHBOARD_TABS.PROGRESS && (
           <div className="text-center text-gray-500 p-6">
             Progress tracking coming soon
           </div>
