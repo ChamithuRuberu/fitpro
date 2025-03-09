@@ -5,10 +5,29 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiMail, FiLock, FiUser } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
+import { AuthService } from '@/services/auth.service';
 
 interface LoginFormData {
   email: string;
   password: string;
+}
+
+interface LoginResponse {
+  code: string;
+  title: string;
+  message: string;
+  data: {
+    token: string;
+    refresh_token: string;
+    user: {
+      email: string;
+      city: string;
+      status: string;
+      mobile: string;
+      full_name: string;
+      gov_id: string | null;
+    };
+  };
 }
 
 export default function TrainerLoginPage() {
@@ -36,62 +55,44 @@ export default function TrainerLoginPage() {
         },
         body: JSON.stringify({
           email: formData.email,
-          password: formData.password
+          password: formData.password,
+          role_type: 'ROLE_TRAINER'
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        toast.error(errorData || 'Login failed');
-        throw new Error(`Login failed: ${errorData}`);
+      const data = await response.json() as LoginResponse;
+      console.log('Login response:', data);
+
+      if (!response.ok || data.code !== '0000' || !data.data?.token) {
+        const errorMessage = data.message || 'Login failed';
+        toast.error(errorMessage);
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      
-      if (!data.data?.token) {
-        throw new Error('Login failed: No authentication token received');
-      }
-
-      // Store authentication data using AuthService
+      // Store authentication data
       const authService = new AuthService();
-      await authService.setAuthData({
-        token: data.data.token,
-        refresh_token: data.data.refresh_token,
-        user: {
-          id: data.data.user.id,
-          email: data.data.user.email,
-          role: data.data.user.roles[0]
+      authService.setAuthData(data, 'ROLE_TRAINER');
+
+      // Check if trainer has completed profile
+      const profileResponse = await fetch('http://localhost:8080/api/trainer/profile', {
+        headers: {
+          'Authorization': `Bearer ${data.data.token}`,
+          'Accept': 'application/json'
         }
       });
 
-      // Check if user is a trainer
-      const userRole = data.data.user.roles[0];
-      if (userRole === 'ROLE_TRAINER') {
-        // Check if trainer has completed profile
-        const profileResponse = await fetch('http://localhost:8080/api/trainer/profile', {
-          headers: {
-            'Authorization': `Bearer ${data.data.token}`,
-            'Accept': 'application/json'
-          }
-        });
-
-        if (profileResponse.status === 404) {
-          // Trainer hasn't completed profile
-          toast.success('Please complete your profile');
-          router.push('/trainer-profile');
-          return;
-        } else if (!profileResponse.ok) {
-          throw new Error('Failed to fetch trainer profile');
-        }
-
-        // Trainer has completed profile
-        toast.success('Login successful!');
-        router.push('/dashboard/trainer');
-      } else {
-        // Not a trainer
-        toast.error('Access denied. This login is for trainers only.');
-        await authService.logout();
+      if (profileResponse.status === 404) {
+        // Trainer hasn't completed profile
+        toast.success('Please complete your profile');
+        router.push('/trainer-profile');
+        return;
+      } else if (!profileResponse.ok) {
+        throw new Error('Failed to fetch trainer profile');
       }
+
+      // Trainer has completed profile
+      toast.success(data.message || 'Login successful!');
+      router.push('/dashboard/trainer');
     } catch (err) {
       console.error('Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during login';

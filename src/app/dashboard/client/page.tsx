@@ -3,137 +3,159 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { FiCalendar, FiActivity, FiTrendingUp, FiPackage, FiDollarSign, FiUser, FiPlus } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
+import { FiCalendar, FiActivity, FiTrendingUp, FiPackage, FiDollarSign, FiUser, FiPlus, FiLogOut } from 'react-icons/fi';
+import { AuthService } from '@/services/auth.service';
+import toast, { Toaster } from 'react-hot-toast';
 
 const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
 
-// Sample data
-const clientData = {
-  name: 'John Doe',
-  registeredDate: '2024-01-15',
-  nextPaymentDate: '2024-04-15',
-  subscription: 'Premium',
-  trainer: 'Sarah Wilson',
-  bmi: {
-    current: 24.5,
-    history: [
-      { date: '2024-01-15', value: 26.2 },
-      { date: '2024-02-15', value: 25.4 },
-      { date: '2024-03-15', value: 24.5 },
-    ],
-    category: 'Normal weight',
-  },
-  progress: {
-    weight: {
-      current: 75,
-      goal: 70,
-      start: 82,
-    },
-    monthlyAttendance: 85,
-    completedWorkouts: 24,
-    achievedGoals: 7,
-  },
-};
+interface UserData {
+  email: string;
+  city: string;
+  status: string;
+  mobile: string;
+  full_name: string;
+  gov_id: string | null;
+}
 
-const schedule = [
-  {
-    id: 1,
-    day: 'Monday',
-    workouts: [
-      { time: '07:00 AM', type: 'Cardio', duration: '45 min' },
-      { time: '06:00 PM', type: 'Strength Training', duration: '60 min' },
-    ],
-  },
-  {
-    id: 2,
-    day: 'Wednesday',
-    workouts: [
-      { time: '08:00 AM', type: 'HIIT', duration: '30 min' },
-      { time: '05:00 PM', type: 'Core Training', duration: '45 min' },
-    ],
-  },
-  // Add more days...
-];
+interface Workout {
+  time: string;
+  type: string;
+  duration: string;
+}
 
-const recommendedSupplements = [
-  {
-    id: 1,
-    name: 'Whey Protein Isolate',
-    timing: 'Post-workout',
-    dosage: '30g scoop',
-    benefits: ['Muscle recovery', 'Protein synthesis'],
-    recommended: true,
-  },
-  {
-    id: 2,
-    name: 'BCAA Complex',
-    timing: 'During workout',
-    dosage: '5g',
-    benefits: ['Muscle preservation', 'Reduced fatigue'],
-    recommended: true,
-  },
-  // Add more supplements...
-];
+interface ScheduleDay {
+  id: number;
+  day: string;
+  workouts: Workout[];
+}
 
-const workoutProgram = {
-  name: 'Weight Loss & Strength Program',
-  weeks: [
-    {
-      weekNumber: 1,
-      workouts: [
-        {
-          day: 'Monday',
-          exercises: [
-            { name: 'Squats', sets: 3, reps: 12, weight: '50kg' },
-            { name: 'Bench Press', sets: 3, reps: 10, weight: '40kg' },
-            { name: 'Deadlifts', sets: 3, reps: 8, weight: '60kg' },
-          ],
-        },
-        // Add more days...
-      ],
-    },
-    // Add more weeks...
-  ],
-};
+interface Supplement {
+  id: number;
+  name: string;
+  timing: string;
+  dosage: string;
+  benefits: string[];
+  recommended: boolean;
+}
+
+interface Exercise {
+  name: string;
+  sets: number;
+  reps: number;
+  weight: string;
+}
+
+interface WorkoutDay {
+  day: string;
+  exercises: Exercise[];
+}
+
+interface WorkoutWeek {
+  weekNumber: number;
+  workouts: WorkoutDay[];
+}
+
+interface WorkoutProgram {
+  name: string;
+  weeks: WorkoutWeek[];
+}
 
 export default function ClientDashboard() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'supplements' | 'workouts' | 'progress'>('overview');
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
+  const [supplements, setSupplements] = useState<Supplement[]>([]);
+  const [workoutProgram, setWorkoutProgram] = useState<WorkoutProgram | null>(null);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Good Morning';
+    if (hour >= 12 && hour < 17) return 'Good Afternoon';
+    if (hour >= 17 && hour < 22) return 'Good Evening';
+    return 'Good Night';
+  };
+
+  useEffect(() => {
+    const authService = new AuthService();
+    const auth = authService.getAuthData();
+
+    // Check if user is authenticated and is a client
+    if (!auth.token || auth.role_type !== 'ROLE_USER') {
+      router.push('/login');
+      return;
+    }
+
+    // Set user data
+    if (auth.user) {
+      setUserData(auth.user);
+    }
+
+    // TODO: Fetch actual schedule, supplements, and workout program data from the API
+    // For now, we'll leave these sections empty
+  }, [router]);
+
+  const handleLogout = () => {
+    try {
+      const authService = new AuthService();
+      authService.logout();
+      toast.success('Logged out successfully');
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to logout');
+    }
+  };
+
+  if (!userData) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
+      <Toaster position="top-right" />
+
       {/* Dashboard Header */}
       <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-gray-900">Welcome, {clientData.name}</h1>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">Trainer: {clientData.trainer}</span>
-              <span className="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-sm">
-                {clientData.subscription}
-              </span>
+            <h1 className="text-2xl font-semibold text-gray-900">{getGreeting()}, {userData.full_name}</h1>
+            <div className="flex items-center space-x-6">
+
+              <button
+                onClick={handleLogout}
+                className="flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <FiLogOut className="w-4 h-4 mr-2" />
+                Logout
+              </button>
             </div>
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex space-x-4 mt-6">
-            {['overview', 'schedule', 'supplements', 'workouts', 'progress'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  activeTab === tab
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
+          <div className="flex justify-between items-center mt-6">
+            <div className="flex space-x-4">
+              {['overview', 'schedule', 'supplements', 'workouts', 'progress'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab as any)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === tab
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">Trainer:</span>
+              <span className="px-3 py-1 bg-blue-100 text-blue-600 rounded-md text-sm font-medium">
+                Not Assigned
+              </span>
+            </div>
           </div>
         </div>
       </header>
@@ -152,9 +174,9 @@ export default function ClientDashboard() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">BMI Status</p>
-                    <p className="text-2xl font-semibold text-gray-900">{clientData.bmi.current}</p>
-                    <p className="text-sm text-gray-600">{clientData.bmi.category}</p>
+                    <p className="text-sm font-medium text-gray-600">Contact Info</p>
+                    <p className="text-lg font-semibold text-gray-900">{userData.mobile}</p>
+                    <p className="text-sm text-gray-600">{userData.email}</p>
                   </div>
                   <div className="p-3 bg-blue-50 rounded-full">
                     <FiUser className="w-6 h-6 text-blue-600" />
@@ -170,11 +192,9 @@ export default function ClientDashboard() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Next Payment</p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {new Date(clientData.nextPaymentDate).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm text-gray-600">Subscription: {clientData.subscription}</p>
+                    <p className="text-sm font-medium text-gray-600">Location</p>
+                    <p className="text-lg font-semibold text-gray-900">{userData.city}</p>
+                    <p className="text-sm text-gray-600">Current City</p>
                   </div>
                   <div className="p-3 bg-green-50 rounded-full">
                     <FiDollarSign className="w-6 h-6 text-green-600" />
@@ -190,9 +210,9 @@ export default function ClientDashboard() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Monthly Progress</p>
-                    <p className="text-2xl font-semibold text-gray-900">{clientData.progress.monthlyAttendance}%</p>
-                    <p className="text-sm text-gray-600">Attendance Rate</p>
+                    <p className="text-sm font-medium text-gray-600">Account Status</p>
+                    <p className="text-lg font-semibold text-gray-900">{userData.status}</p>
+                    <p className="text-sm text-gray-600">Current Status</p>
                   </div>
                   <div className="p-3 bg-purple-50 rounded-full">
                     <FiActivity className="w-6 h-6 text-purple-600" />
@@ -201,20 +221,6 @@ export default function ClientDashboard() {
               </motion.div>
             </div>
 
-            {/* Registration Info */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Account Information</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Registered Date</p>
-                  <p className="font-medium">{new Date(clientData.registeredDate).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Membership Status</p>
-                  <p className="font-medium">{clientData.subscription}</p>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -225,22 +231,28 @@ export default function ClientDashboard() {
               <h2 className="text-lg font-semibold text-gray-900">Weekly Schedule</h2>
             </div>
             <div className="divide-y divide-gray-200">
-              {schedule.map((day) => (
-                <div key={day.id} className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{day.day}</h3>
-                  <div className="space-y-4">
-                    {day.workouts.map((workout, index) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
-                        <div>
-                          <p className="font-medium">{workout.type}</p>
-                          <p className="text-sm text-gray-600">{workout.time}</p>
+              {schedule.length > 0 ? (
+                schedule.map((day: ScheduleDay) => (
+                  <div key={day.id} className="p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">{day.day}</h3>
+                    <div className="space-y-4">
+                      {day.workouts.map((workout: Workout, index: number) => (
+                        <div key={index} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                          <div>
+                            <p className="font-medium">{workout.type}</p>
+                            <p className="text-sm text-gray-600">{workout.time}</p>
+                          </div>
+                          <span className="text-sm text-gray-600">{workout.duration}</span>
                         </div>
-                        <span className="text-sm text-gray-600">{workout.duration}</span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="p-6 text-center text-gray-500">
+                  No schedule available yet
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
@@ -252,41 +264,47 @@ export default function ClientDashboard() {
               <h2 className="text-lg font-semibold text-gray-900">Recommended Supplements</h2>
             </div>
             <div className="grid md:grid-cols-2 gap-6 p-6">
-              {recommendedSupplements.map((supplement) => (
-                <div key={supplement.id} className="bg-white border rounded-xl p-6 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">{supplement.name}</h3>
-                    {supplement.recommended && (
-                      <span className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full">
-                        Recommended
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Timing</p>
-                      <p className="font-medium">{supplement.timing}</p>
+              {supplements.length > 0 ? (
+                supplements.map((supplement: Supplement) => (
+                  <div key={supplement.id} className="bg-white border rounded-xl p-6 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">{supplement.name}</h3>
+                      {supplement.recommended && (
+                        <span className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full">
+                          Recommended
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Dosage</p>
-                      <p className="font-medium">{supplement.dosage}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Benefits</p>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {supplement.benefits.map((benefit, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
-                          >
-                            {benefit}
-                          </span>
-                        ))}
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm text-gray-600">Timing</p>
+                        <p className="font-medium">{supplement.timing}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Dosage</p>
+                        <p className="font-medium">{supplement.dosage}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Benefits</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {supplement.benefits.map((benefit: string, index: number) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full"
+                            >
+                              {benefit}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="col-span-2 text-center text-gray-500">
+                  No supplements recommended yet
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
@@ -295,100 +313,48 @@ export default function ClientDashboard() {
         {activeTab === 'workouts' && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">{workoutProgram.name}</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {workoutProgram ? workoutProgram.name : 'Workout Program'}
+              </h2>
             </div>
             <div className="p-6">
-              {workoutProgram.weeks.map((week) => (
-                <div key={week.weekNumber} className="mb-8">
-                  <h3 className="text-lg font-semibold mb-4">Week {week.weekNumber}</h3>
-                  <div className="space-y-6">
-                    {week.workouts.map((workout, index) => (
-                      <div key={index} className="bg-gray-50 rounded-lg p-6">
-                        <h4 className="font-medium mb-4">{workout.day}</h4>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {workout.exercises.map((exercise, i) => (
-                            <div key={i} className="bg-white p-4 rounded-lg shadow-sm">
-                              <p className="font-medium">{exercise.name}</p>
-                              <div className="mt-2 text-sm text-gray-600">
-                                <p>{exercise.sets} sets × {exercise.reps} reps</p>
-                                <p>Weight: {exercise.weight}</p>
+              {workoutProgram ? (
+                workoutProgram.weeks.map((week) => (
+                  <div key={week.weekNumber} className="mb-8">
+                    <h3 className="text-lg font-semibold mb-4">Week {week.weekNumber}</h3>
+                    <div className="space-y-6">
+                      {week.workouts.map((workout, index) => (
+                        <div key={index} className="bg-gray-50 rounded-lg p-6">
+                          <h4 className="font-medium mb-4">{workout.day}</h4>
+                          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {workout.exercises.map((exercise, i) => (
+                              <div key={i} className="bg-white p-4 rounded-lg shadow-sm">
+                                <p className="font-medium">{exercise.name}</p>
+                                <div className="mt-2 text-sm text-gray-600">
+                                  <p>{exercise.sets} sets × {exercise.reps} reps</p>
+                                  <p>Weight: {exercise.weight}</p>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center text-gray-500">
+                  No workout program available yet
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
 
         {/* Progress Tab */}
         {activeTab === 'progress' && (
-          <div className="space-y-6">
-            {/* Weight Progress */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Weight Progress</h2>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Starting Weight</p>
-                  <p className="text-lg font-semibold">{clientData.progress.weight.start} kg</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Current Weight</p>
-                  <p className="text-lg font-semibold">{clientData.progress.weight.current} kg</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Goal Weight</p>
-                  <p className="text-lg font-semibold">{clientData.progress.weight.goal} kg</p>
-                </div>
-              </div>
-              <div className="mt-4">
-                <div className="w-full h-2 bg-gray-200 rounded-full">
-                  <div
-                    className="h-full bg-blue-600 rounded-full"
-                    style={{
-                      width: `${((clientData.progress.weight.start - clientData.progress.weight.current) /
-                        (clientData.progress.weight.start - clientData.progress.weight.goal)) * 100}%`
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* BMI History */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">BMI History</h2>
-              <div className="space-y-4">
-                {clientData.bmi.history.map((record, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <span className="text-gray-600">{new Date(record.date).toLocaleDateString()}</span>
-                    <span className="font-medium">{record.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Monthly Stats */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Monthly Achievement</h2>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Completed Workouts</p>
-                  <p className="text-lg font-semibold">{clientData.progress.completedWorkouts}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Attendance Rate</p>
-                  <p className="text-lg font-semibold">{clientData.progress.monthlyAttendance}%</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Goals Achieved</p>
-                  <p className="text-lg font-semibold">{clientData.progress.achievedGoals}</p>
-                </div>
-              </div>
-            </div>
+          <div className="text-center text-gray-500 p-6">
+            Progress tracking coming soon
           </div>
         )}
       </main>

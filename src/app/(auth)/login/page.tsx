@@ -5,10 +5,29 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiMail, FiLock } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
+import { AuthService } from '@/services/auth.service';
 
 interface LoginFormData {
   email: string;
   password: string;
+}
+
+interface LoginResponse {
+  code: string;
+  title: string;
+  message: string;
+  data: {
+    token: string;
+    refresh_token: string;
+    user: {
+      email: string;
+      city: string;
+      status: string;
+      mobile: string;
+      full_name: string;
+      gov_id: string | null;
+    };
+  };
 }
 
 export default function LoginPage() {
@@ -36,7 +55,8 @@ export default function LoginPage() {
         },
         body: JSON.stringify({
           email: formData.email,
-          password: formData.password
+          password: formData.password,
+          role_type: 'ROLE_USER'
         }),
       });
 
@@ -46,36 +66,19 @@ export default function LoginPage() {
         throw new Error(`Login failed: ${errorData}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as LoginResponse;
       
-      if (!data.data?.token) {
+      if (!response.ok || data.code !== '0000' || !data.data?.token) {
         throw new Error('Login failed: No authentication token received');
       }
 
       // Store authentication data using AuthService
       const authService = new AuthService();
-      await authService.setAuthData({
-        token: data.data.token,
-        refresh_token: data.data.refresh_token,
-        user: {
-          id: data.data.user.id,
-          email: data.data.user.email,
-          role: data.data.user.roles[0]
-        }
-      });
-
-      // Check if user is a trainer
-      const userRole = data.data.user.roles[0];
-      if (userRole === 'ROLE_TRAINER') {
-        // Not allowed in main login
-        toast.error('Please use the trainer login page');
-        await authService.logout();
-        return;
-      }
+      authService.setAuthData(data, 'ROLE_USER');
 
       // Regular user login successful
-      toast.success('Login successful!');
-      router.push('/dashboard/user');
+      toast.success(data.message || 'Login successful!');
+      router.push('/dashboard/client');
     } catch (err) {
       console.error('Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during login';
