@@ -67,7 +67,7 @@ export default function TrainerLoginPage() {
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Not a trainer?{' '}
-          <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link href="/user-login" className="font-medium text-blue-600 hover:text-blue-500">
             Go to main login
           </Link>
         </p>
@@ -162,7 +162,7 @@ export default function TrainerLoginPage() {
             <div className="text-center">
               <p className="text-sm text-gray-600">
                 Want to become a trainer?{' '}
-                <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+                <Link href="/register-init" className="font-medium text-blue-600 hover:text-blue-500">
                   Sign up here
                 </Link>
               </p>
