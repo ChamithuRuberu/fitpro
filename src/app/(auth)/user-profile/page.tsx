@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiUser, FiLock, FiCalendar, FiMapPin } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
+import { getSession, registerUser } from '@/actions';
 
 interface RegisterFormData {
   username: string;
@@ -37,38 +38,63 @@ export default function RegisterPage() {
     city: '',
     password: '',
     postalCode: '',
-    role_type: '',
+    role_type: 'ROLE_USER',
     servicePeriod: '',
     weight: '',
     height: '',
     injuries: ''
   });
 
+  useEffect(() => {
+    const checkSession = async () => {
+      const session = await getSession();
+      if (session.userId) {
+        setFormData(prev => ({
+          ...prev,
+          username: session.userId || ''
+        }));
+      } else {
+        router.replace('/signup');
+      }
+    };
+    
+    checkSession();
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8080/api/user/app-user/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
+      const requestData = {
+        username: formData.username,
+        name: formData.full_name,
+        profile: "default",
+        full_name: formData.full_name,
+        birth_of_date: formData.birth_of_date,
+        address_no: formData.address_no,
+        address_street: formData.address_street,
+        city: formData.city,
+        password: formData.password,
+        postalCode: formData.postalCode,
+        role_type: "ROLE_USER",
+        servicePeriod: "0",
+        weight: formData.weight,
+        height: formData.height,
+        injuries: formData.injuries || "None"
+      };
 
-      const data = await response.json();
-      console.log('Response:', data);
+      const result = await registerUser(requestData);
 
-      if (response.ok) {
-        toast.success('Registration successful!');
-        router.push('/verify?username=' + formData.username);
+      if (result.success) {
+        toast.success('Profile created successfully!');
+        router.replace('/dashboard/client');
       } else {
-        toast.error(data.message || 'Registration failed');
+        toast.error(result.error || 'Registration failed');
       }
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Failed to register');
+      toast.error('Failed to create profile');
     } finally {
       setLoading(false);
     }

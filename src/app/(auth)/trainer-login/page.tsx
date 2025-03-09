@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiMail, FiLock, FiUser } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
-import { AuthService } from '@/services/auth.service';
 
 interface LoginFormData {
   email: string;

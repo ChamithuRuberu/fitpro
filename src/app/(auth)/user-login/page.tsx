@@ -5,30 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiMail, FiLock } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
-import { AuthService } from '@/services/auth.service';
 
 interface LoginFormData {
   email: string;
   password: string;
 }
 
-interface LoginResponse {
-  code: string;
-  title: string;
-  message: string;
-  data: {
-    token: string;
-    refresh_token: string;
-    user: {
-      email: string;
-      city: string;
-      status: string;
-      mobile: string;
-      full_name: string;
-      gov_id: string | null;
-    };
-  };
-}
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,54 +23,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    const loadingToast = toast.loading('Signing in...');
-
-    try {
-      const response = await fetch('http://localhost:8080/api/user/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          role_type: 'ROLE_USER'
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        toast.error(errorData || 'Login failed');
-        throw new Error(`Login failed: ${errorData}`);
-      }
-
-      const data = await response.json() as LoginResponse;
-      
-      if (!response.ok || data.code !== '0000' || !data.data?.token) {
-        throw new Error('Login failed: No authentication token received');
-      }
-
-      // Store authentication data using AuthService
-      const authService = new AuthService();
-      authService.setAuthData(data, 'ROLE_USER');
-
-      // Regular user login successful
-      toast.success(data.message || 'Login successful!');
-      router.push('/dashboard/client');
-    } catch (err) {
-      console.error('Login error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during login';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      toast.dismiss(loadingToast);
-      setLoading(false);
-    }
+    
   };
 
   return (
