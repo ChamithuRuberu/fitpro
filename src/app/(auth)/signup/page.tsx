@@ -6,13 +6,32 @@ import Link from 'next/link';
 import { FiMail, FiLock, FiPhone } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
 
-// Define types for our form data
+// Define types for our form data and API response
 interface SignupFormData {
   nic: string;
   mobile: string;
   email: string;
   isTrainer: boolean;
-  trainerId?: string; // Will be auto-generated if isTrainer is true
+}
+
+interface ApiResponse {
+  code: string;
+  title: string;
+  message: string;
+  data: {
+    user_role: Array<{
+      id: number;
+      name: string;
+      status: string;
+      permissions: Array<{
+        id: number;
+        name: string;
+      }>;
+    }>;
+    app_user_id: string;
+    mobile: string;
+    trainer_id?: number;
+  };
 }
 
 export default function SignupPage() {
@@ -26,6 +45,11 @@ export default function SignupPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const generateTrainerId = (): number => {
+    // Generate a random 6-digit number
+    return Math.floor(100000 + Math.random() * 900000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,10 +65,11 @@ export default function SignupPage() {
         nic: formData.nic,
         mobile: formData.mobile,
         email: formData.email,
-        role_type: formData.isTrainer ? 'ROLE_TRAINER' : 'ROLE_USER'
+        role_type: formData.isTrainer ? 'ROLE_TRAINER' : 'ROLE_USER',
+        // Add trainer_id if user is a trainer
+        ...(formData.isTrainer && { trainer_id: generateTrainerId() })
       };
       
-      // Using Fetch API with full URL
       const response = await fetch('http://localhost:8080/api/user/register-init', {
         method: 'POST',
         headers: {
@@ -61,31 +86,35 @@ export default function SignupPage() {
         throw new Error(`Registration failed: ${errorData}`);
       }
 
-      const data = await response.json();
+      const data: ApiResponse = await response.json();
       
-      if (!data.data?.app_user_id) {
-        throw new Error('Registration failed: No app_user_id received');
+      if (data.code !== "0000" || !data.data?.app_user_id) {
+        throw new Error('Registration failed: Invalid response from server');
       }
 
-      const userData = data.data;
-      
-      // Store the complete registration response data
-      localStorage.setItem('registrationData', JSON.stringify(data));
-      localStorage.setItem('registeredEmail', formData.email);
-      localStorage.setItem('app_user_id', userData.app_user_id);
+      // Store registration data
+      localStorage.setItem('registrationData', JSON.stringify({
+        username: formData.email,
+        email: formData.email,
+        nic: formData.nic,
+        mobile: formData.mobile,
+        role_type: formData.isTrainer ? 'ROLE_TRAINER' : 'ROLE_USER',
+        trainer_id: data.data.trainer_id?.toString() || '',
+        app_user_id: data.data.app_user_id
+      }));
+
+      // Store registration flags
       localStorage.setItem('isRegistering', 'true');
+      
+      // Store trainer specific data if applicable
+      if (formData.isTrainer && data.data.trainer_id) {
+        localStorage.setItem('trainer_id', data.data.trainer_id.toString());
+      }
       
       toast.success(data.message || 'Registration successful! Please verify your account.');
       
-      // Construct verify URL with app_user_id
-      const verifyUrl = `/verify?username=${encodeURIComponent(userData.app_user_id)}`;
-      
-      // Use setTimeout to ensure toast is visible before navigation
-      setTimeout(() => {
-        window.location.replace(verifyUrl);
-      }, 1000);
-      
-      return;
+      // Navigate to verify page with username
+      router.push(`/verify?username=${encodeURIComponent(data.data.app_user_id)}`);
     } catch (err) {
       console.error('❌ Registration error:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during registration';
