@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { FiCalendar, FiActivity, FiTrendingUp, FiPackage, FiDollarSign, FiUser, FiPlus, FiLogOut } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
+import { getSession } from '@/actions';
 
 const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
 
@@ -77,14 +78,18 @@ export default function ClientDashboard() {
     return 'Good Night';
   };
 
+
   useEffect(() => {
+    //fetch user data
+    const fetchUserData = async () => {
+      const auth = await getSession();
+      console.log(JSON.stringify(auth, null, 2)); // Pretty-print JSON
+     
+    };
+    fetchUserData();
 
-    
-    // TODO: Fetch actual schedule, supplements, and workout program data from the API
-    // For now, we'll leave these sections empty
-  }, [router]);
 
- 
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -114,8 +119,8 @@ export default function ClientDashboard() {
                   key={tab}
                   onClick={() => setActiveTab(tab as any)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === tab
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-600 hover:bg-gray-50'
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-gray-600 hover:bg-gray-50'
                     }`}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
